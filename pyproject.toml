@@ -1,0 +1,55 @@
+[project]
+name = "eventbus"
+version = "0.1.0"
+description = "Python event bus library based on CloudEvents specification, supporting in-process and distributed event handling"
+authors = [
+    {name = "EventBus Contributors"}
+]
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "Apache-2.0"}
+keywords = ["eventbus", "cloudevents", "faststream", "fastapi", "async", "pubsub"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Framework :: FastAPI",
+    "Framework :: AsyncIO",
+]
+
+dependencies = [
+    "pydantic>=2.0.0",
+    "faststream>=0.5.0",
+]
+
+[project.optional-dependencies]
+examples = [
+    "fastapi>=0.100.0",
+    "uvicorn>=0.20.0",
+    "faststream[redis]>=0.5.0",
+]
+redis = [
+    "faststream[redis]>=0.5.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/eventbus"
+Repository = "https://github.com/yourusername/eventbus"
+Documentation = "https://github.com/yourusername/eventbus#readme"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["eventbus"]
+
+[tool.setuptools.package-data]
+eventbus = ["py.typed"]
