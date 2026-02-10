@@ -23,10 +23,10 @@ from typing import Dict, Any
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
-from eventbus.memory_broker import AsyncQueueBroker
+from opensecflow.eventbus.memory_broker import AsyncQueueBroker
 from faststream.redis import RedisBroker
-from eventbus.eventbus import EventBus, event_handler
-from eventbus.event import SkyEvent, EventScope
+from opensecflow.eventbus.eventbus import EventBus, event_handler
+from opensecflow.eventbus.event import ScopedEvent, EventScope
 
 
 # Configure logging
@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 # Event Definitions
 # ============================================================
 
-class OrderCreatedEvent(SkyEvent):
+class OrderCreatedEvent(ScopedEvent):
     """Order created event - PROCESS scope"""
     type: str = "order.created"
     order_id: str
@@ -50,7 +50,7 @@ class OrderCreatedEvent(SkyEvent):
     scope: EventScope = EventScope.PROCESS
 
 
-class NotificationEvent(SkyEvent):
+class NotificationEvent(ScopedEvent):
     """Notification event - APP scope (distributed)"""
     type: str = "notification.sent"
     user_id: str
@@ -122,7 +122,7 @@ async def lifespan(app: FastAPI):
     app_broker = RedisBroker("redis://localhost:6379")
 
     # Initialize EventBus
-    from eventbus.eventbus import init_eventbus
+    from opensecflow.eventbus.eventbus import init_eventbus
     event_bus = init_eventbus(process_broker, app_broker)
 
     # Store in app state

@@ -4,7 +4,7 @@
 """
 import asyncio
 
-from eventbus.memory_broker import AsyncQueueBroker
+from opensecflow.eventbus.memory_broker import AsyncQueueBroker
 
 
 async def main():

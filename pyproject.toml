@@ -1,5 +1,5 @@
 [project]
-name = "eventbus"
+name = "opensecflow.eventbus"
 version = "0.1.0"
 description = "Python event bus library based on CloudEvents specification, supporting in-process and distributed event handling"
 authors = [
@@ -8,7 +8,7 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "Apache-2.0"}
-keywords = ["eventbus", "cloudevents", "faststream", "fastapi", "async", "pubsub"]
+keywords = ["eventbus", "cloudevents", "faststream", "fastapi", "async", "pubsub", "opensecflow"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -49,7 +49,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["eventbus"]
+packages = ["opensecflow.eventbus"]
 
 [tool.setuptools.package-data]
-eventbus = ["py.typed"]
+"opensecflow.eventbus" = ["py.typed"]

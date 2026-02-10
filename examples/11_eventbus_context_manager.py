@@ -8,9 +8,9 @@ Demonstrates:
 import asyncio
 import logging
 
-from eventbus.memory_broker import AsyncQueueBroker
-from eventbus.eventbus import EventBus
-from eventbus.event import SkyEvent, EventScope
+from opensecflow.eventbus.memory_broker import AsyncQueueBroker
+from opensecflow.eventbus.eventbus import EventBus
+from opensecflow.eventbus.event import ScopedEvent, EventScope
 
 
 # Configure logging
@@ -27,7 +27,7 @@ async def main():
     process_broker = AsyncQueueBroker()
     app_broker = AsyncQueueBroker()
 
-    class PaymentEvent(SkyEvent):
+    class PaymentEvent(ScopedEvent):
         type: str = "payment.completed"
         payment_id: str
         amount: float

@@ -9,9 +9,9 @@ Demonstrates:
 import asyncio
 import logging
 
-from eventbus.memory_broker import AsyncQueueBroker
-from eventbus.eventbus import event_handler, init_eventbus
-from eventbus.event import SkyEvent, EventScope
+from opensecflow.eventbus.memory_broker import AsyncQueueBroker
+from opensecflow.eventbus.eventbus import event_handler, init_eventbus
+from opensecflow.eventbus.event import ScopedEvent, EventScope
 
 
 # Configure logging
@@ -26,7 +26,7 @@ async def main():
     print("\n=== EventBus with Decorator Registration ===\n")
 
     # Define event class
-    class UserRegisteredEvent(SkyEvent):
+    class UserRegisteredEvent(ScopedEvent):
         type: str = "user.registered"
         user_id: str
         email: str

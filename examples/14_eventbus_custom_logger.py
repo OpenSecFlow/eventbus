@@ -8,9 +8,9 @@ Demonstrates:
 import asyncio
 import logging
 
-from eventbus.memory_broker import AsyncQueueBroker
-from eventbus.eventbus import EventBus
-from eventbus.event import SkyEvent, EventScope
+from opensecflow.eventbus.memory_broker import AsyncQueueBroker
+from opensecflow.eventbus.eventbus import EventBus
+from opensecflow.eventbus.event import ScopedEvent, EventScope
 
 
 # Configure logging
@@ -34,7 +34,7 @@ async def main():
     # Pass custom logger to EventBus
     bus = EventBus(process_broker, app_broker, logger=custom_logger)
 
-    class CustomEvent(SkyEvent):
+    class CustomEvent(ScopedEvent):
         type: str = "custom.event"
         data: str
         scope: EventScope = EventScope.PROCESS

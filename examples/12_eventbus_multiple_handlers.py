@@ -8,9 +8,9 @@ Demonstrates:
 import asyncio
 import logging
 
-from eventbus.memory_broker import AsyncQueueBroker
-from eventbus.eventbus import EventBus
-from eventbus.event import SkyEvent, EventScope
+from opensecflow.eventbus.memory_broker import AsyncQueueBroker
+from opensecflow.eventbus.eventbus import EventBus
+from opensecflow.eventbus.event import ScopedEvent, EventScope
 
 
 # Configure logging
@@ -27,7 +27,7 @@ async def main():
     process_broker = AsyncQueueBroker()
     app_broker = AsyncQueueBroker()
 
-    class OrderShippedEvent(SkyEvent):
+    class OrderShippedEvent(ScopedEvent):
         type: str = "order.shipped"
         order_id: str
         tracking_number: str

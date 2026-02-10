@@ -6,7 +6,7 @@
 from fastapi import FastAPI
 import uvicorn
 from contextlib import asynccontextmanager
-from eventbus.memory_broker import AsyncQueueBroker
+from opensecflow.eventbus.memory_broker import AsyncQueueBroker
 
 
 broker = AsyncQueueBroker()

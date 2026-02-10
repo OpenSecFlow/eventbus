@@ -1,15 +1,15 @@
 import logging
 from typing import Any, Dict, List, Callable, Type, Union, Optional
-from eventbus.event import EventScope, SkyEvent
-from eventbus.memory_broker import AsyncQueueBroker
+from opensecflow.eventbus.event import EventScope, ScopedEvent
+from opensecflow.eventbus.memory_broker import AsyncQueueBroker
 
 
 class EventBus:
-    """事件总线
+    """Event Bus
 
-    支持双模式事件处理：
-    - 进程内事件：直接调用本地 Handler, 适用于快速响应和;
-    - 分布式事件：通过 FastStream broker 分发，适用于跨实例通信和广播;
+    Supports dual-mode event handling:
+    - In-process events: Directly calls local handlers, suitable for fast response;
+    - Distributed events: Distributed via FastStream broker, suitable for cross-instance communication and broadcasting;
     """
     _process_level_broker: AsyncQueueBroker
     _app_level_broker: Any
@@ -18,13 +18,13 @@ class EventBus:
 
 
     def __init__(self, process_level_broker: Any, app_level_broker: Any, logger: Optional[logging.Logger] = None):
-        """初始化 EventBus
+        """Initialize EventBus
 
-        :param process_level_broker: (本地)进程内事件处理的 broker 实例
+        :param process_level_broker: Broker instance for (local) in-process event handling
         :type process_level_broker: Any
-        :param app_level_broker: (分布式)应用级别事件处理的 broker 实例
+        :param app_level_broker: Broker instance for (distributed) application-level event handling
         :type app_level_broker: Any
-        :param logger: 日志记录器，如果为 None 则使用标准库 logging
+        :param logger: Logger instance, uses standard library logging if None
         :type logger: Optional[logging.Logger]
         """
         if process_level_broker is None:
@@ -37,9 +37,9 @@ class EventBus:
         self._logger = logger if logger is not None else logging.getLogger(__name__)
 
     async def start(self):
-        """启动 EventBus 和所有 broker
+        """Start EventBus and all brokers
 
-        启动 process_level_broker 和 app_level_broker。
+        Starts process_level_broker and app_level_broker.
         """
         self._logger.info("Starting EventBus...")
         try:
@@ -54,16 +54,16 @@ class EventBus:
             self._logger.info("App level broker started")
         except Exception as e:
             self._logger.error(f"Failed to start app level broker: {e}")
-            # 如果 app broker 启动失败，停止已启动的 process broker
+            # If app broker fails to start, stop the already started process broker
             await self._process_level_broker.stop()
             raise
 
         self._logger.info("EventBus started successfully")
 
     async def stop(self):
-        """停止 EventBus 和所有 broker
+        """Stop EventBus and all brokers
 
-        停止 process_level_broker 和 app_level_broker。
+        Stops process_level_broker and app_level_broker.
         """
         self._logger.info("Stopping EventBus...")
         errors = []
@@ -89,73 +89,73 @@ class EventBus:
             self._logger.info("EventBus stopped successfully")
 
     async def __aenter__(self):
-        """异步上下文管理器入口"""
+        """Async context manager entry"""
         await self.start()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """异步上下文管理器退出"""
+        """Async context manager exit"""
         await self.stop()
         return False
 
     def subscribe(self, event_type: str, handler: Callable):
-        """注册事件 Handler
+        """Register event handler
 
         Args:
-            event_type: 事件类型
-            handler: 处理函数
+            event_type: Event type
+            handler: Handler function
         """
         if event_type not in self._handlers:
             self._handlers[event_type] = []
         self._handlers[event_type].append(handler)
 
-        # 构造 channel 名称
+        # Construct channel name
         channel = f"events.{event_type}"
 
-        # 在两个 broker 上注册 handler
+        # Register handler on both brokers
         self._process_level_broker.subscriber(channel)(handler)
         self._app_level_broker.subscriber(channel)(handler)
 
         self._logger.info(f"Registered handler '{handler.__name__}' for event '{event_type}'")
 
-    async def publish(self, event: SkyEvent):
-        """发布事件
+    async def publish(self, event: ScopedEvent):
+        """Publish event
 
-        根据事件的 scope 决定处理方式：
-        - PROCESS: 直接调用本地 Handler
-        - APP: 通过 FastStream broker 分发
+        Determines handling method based on event scope:
+        - PROCESS: Directly calls local handlers
+        - APP: Distributes via FastStream broker
 
         Args:
-            event: 事件实例
+            event: Event instance
         """
         if event.scope == EventScope.PROCESS:
-            # 进程内处理
+            # In-process handling
             await self._handle_local(event)
         else:
-            # 通过 FastStream broker 分发
+            # Distribute via FastStream broker
             await self._handle_distributed(event)
 
-    def _get_channel(self, event: SkyEvent) -> str:
-        """获取事件的 channel 名称
+    def _get_channel(self, event: ScopedEvent) -> str:
+        """Get channel name for the event
 
         Args:
-            event: 事件实例
+            event: Event instance
 
         Returns:
-            channel 名称
+            Channel name
         """
         return f"events.{event.event_type}"
 
-    async def _handle_local(self, event: SkyEvent):
-        """处理进程内事件
+    async def _handle_local(self, event: ScopedEvent):
+        """Handle in-process event
 
-        通过 process_level_broker 处理进程内事件。
+        Handles in-process events via process_level_broker.
 
         Args:
-            event: 事件实例
+            event: Event instance
         """
         channel = self._get_channel(event)
-        # 获取 scope 的字符串值（兼容 Enum 和 str）
+        # Get string value of scope (compatible with Enum and str)
         scope_value = event.scope.value if hasattr(event.scope, 'value') else event.scope
         self._logger.info(f"Processing {scope_value} event '{event.event_type}' via process broker")
 
@@ -167,16 +167,16 @@ class EventBus:
         except Exception as e:
             self._logger.error(f"Failed to publish event to process broker: {e}")
 
-    async def _handle_distributed(self, event: SkyEvent):
-        """通过 FastStream 处理分布式事件
+    async def _handle_distributed(self, event: ScopedEvent):
+        """Handle distributed event via FastStream
 
-        发布到 broker channel，由所有 Worker 接收。
+        Publishes to broker channel, received by all workers.
 
         Args:
-            event: 事件实例
+            event: Event instance
         """
         channel = self._get_channel(event)
-        # 获取 scope 的字符串值（兼容 Enum 和 str）
+        # Get string value of scope (compatible with Enum and str)
         scope_value = event.scope.value if hasattr(event.scope, 'value') else event.scope
         self._logger.info(f"Publishing {scope_value} event '{event.event_type}' to channel '{channel}'")
 
@@ -189,10 +189,10 @@ class EventBus:
             self._logger.error(f"Failed to publish event: {e}")
 
     def get_handlers(self) -> Dict[str, List[Dict[str, str]]]:
-        """获取所有已注册的 Handlers
+        """Get all registered handlers
 
         Returns:
-            字典，键为事件类型，值为 Handler 信息列表
+            Dictionary with event types as keys and handler info lists as values
         """
         result = {}
         for event_type, handlers in self._handlers.items():
@@ -208,17 +208,17 @@ class EventBus:
 
 event_bus = None
 
-# 待注册的 handlers（在 EventBus 初始化前收集）
+# Pending handlers (collected before EventBus initialization)
 _pending_handlers: List[tuple] = []
 
 
-def event_handler(event_class: Type[SkyEvent]):
-    """事件处理函数装饰器
+def event_handler(event_class: Type[ScopedEvent]):
+    """Event handler function decorator
 
-    用于注册事件 Handler 到 EventBus。
+    Used to register event handlers to EventBus.
 
     Args:
-        event_class: SkyEvent 类
+        event_class: ScopedEvent class
 
     Example:
         @event_handler(OrderCreatedEvent)
@@ -226,12 +226,12 @@ def event_handler(event_class: Type[SkyEvent]):
             pass
     """
     def decorator(func: Callable):
-        # 从 SkyEvent 类中提取 event_type
-        if not (isinstance(event_class, type) and issubclass(event_class, SkyEvent)):
-            raise TypeError(f"event_handler expects SkyEvent class, got {type(event_class)}")
+        # Extract event_type from ScopedEvent class
+        if not (isinstance(event_class, type) and issubclass(event_class, ScopedEvent)):
+            raise TypeError(f"event_handler expects ScopedEvent class, got {type(event_class)}")
 
         try:
-            # 尝试从类的字段默认值中获取 type（CloudEvent 的字段名）
+            # Try to get type from class field default value (CloudEvent field name)
             if hasattr(event_class, 'model_fields') and 'type' in event_class.model_fields:
                 field_info = event_class.model_fields['type']
                 if hasattr(field_info, 'default') and field_info.default is not None:
@@ -243,14 +243,14 @@ def event_handler(event_class: Type[SkyEvent]):
         except Exception as e:
             raise ValueError(f"Cannot extract event type from {event_class}: {e}")
 
-        # 如果 EventBus 已初始化，直接注册
+        # If EventBus is already initialized, register directly
         if event_bus is not None:
             if event_type not in event_bus._handlers:
                 event_bus._handlers[event_type] = []
             event_bus._handlers[event_type].append(func)
             event_bus._logger.info(f"Registered handler '{func.__name__}' for event '{event_type}'")
         else:
-            # 否则加入待注册列表
+            # Otherwise add to pending list
             _pending_handlers.append((event_type, func))
 
         return func
@@ -259,20 +259,20 @@ def event_handler(event_class: Type[SkyEvent]):
 
 def init_eventbus(process_level_broker: Any, app_level_broker: Any,
                   logger: Optional[logging.Logger] = None) -> EventBus:
-    """初始化全局 EventBus 实例
+    """Initialize global EventBus instance
 
     Args:
-        process_level_broker: 进程内事件处理的 broker 实例
-        app_level_broker: 应用级别事件处理的 broker 实例
-        logger: 日志记录器，如果为 None 则使用标准库 logging
+        process_level_broker: Broker instance for in-process event handling
+        app_level_broker: Broker instance for application-level event handling
+        logger: Logger instance, uses standard library logging if None
 
     Returns:
-        初始化后的 EventBus 实例
+        Initialized EventBus instance
     """
     global event_bus
     event_bus = EventBus(process_level_broker, app_level_broker, logger)
 
-    # 注册所有待处理的 handlers
+    # Register all pending handlers
     for event_type, handler in _pending_handlers:
         event_bus.subscribe(event_type, handler)
 

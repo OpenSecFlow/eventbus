@@ -6,21 +6,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 EventBus is a Python event bus library based on the CloudEvents v1.0 specification, supporting both in-process and distributed event handling. The library provides a dual-mode architecture for event processing with FastStream compatibility.
 
+**Package Name**: `opensecflow.eventbus` (namespace package)
+
 ## Core Architecture
 
 ### Three-Layer Event System
 
-1. **Event Layer** (`eventbus/event.py`)
+1. **Event Layer** (`opensecflow/eventbus/event.py`)
    - `CloudEvent`: Base class implementing CloudEvents v1.0 specification
-   - `SkyEvent`: Extends CloudEvent with scope functionality
+   - `ScopedEvent`: Extends CloudEvent with scope functionality
    - `EventScope`: Enum defining PROCESS (in-memory) vs APP (distributed) scopes
 
-2. **Broker Layer** (`eventbus/memory_broker.py`)
+2. **Broker Layer** (`opensecflow/eventbus/memory_broker.py`)
    - `AsyncQueueBroker`: FastStream-compatible in-memory broker using asyncio.Queue
    - Provides subscriber/publisher decorators and RPC pattern support
    - Can be used standalone or as part of EventBus
 
-3. **EventBus Layer** (`eventbus/eventbus.py`)
+3. **EventBus Layer** (`opensecflow/eventbus/eventbus.py`)
    - `EventBus`: Core orchestrator managing dual-broker architecture
    - Routes events based on scope: PROCESS events → process_broker, APP events → app_broker
    - Supports decorator-based handler registration via `@event_handler`
@@ -155,15 +157,24 @@ async with EventBus(process_broker, app_broker) as bus:
 ## File Organization
 
 ```
-eventbus/
-├── __init__.py          # Public API exports
-├── event.py             # CloudEvent/SkyEvent/EventScope
-├── eventbus.py          # EventBus core + decorators
-└── memory_broker.py     # AsyncQueueBroker implementation
+opensecflow/
+└── eventbus/
+    ├── __init__.py          # Public API exports
+    ├── event.py             # CloudEvent/ScopedEvent/EventScope
+    ├── eventbus.py          # EventBus core + decorators
+    └── memory_broker.py     # AsyncQueueBroker implementation
 
 examples/
 ├── 01-07_*.py          # AsyncQueueBroker standalone examples
 └── 08-15_*.py          # EventBus integration examples
+```
+
+## Import Usage
+
+```python
+# Import from namespace package
+from opensecflow.eventbus import EventBus, AsyncQueueBroker
+from opensecflow.eventbus.event import ScopedEvent, EventScope
 ```
 
 ## Common Patterns
@@ -186,10 +197,10 @@ app = FastAPI(lifespan=lifespan)
 
 ### Custom Event Classes
 
-Inherit from `SkyEvent` and set `type` and `scope`:
+Inherit from `ScopedEvent` and set `type` and `scope`:
 
 ```python
-class OrderCreatedEvent(SkyEvent):
+class OrderCreatedEvent(ScopedEvent):
     type: str = "order.created"
     order_id: str
     amount: float

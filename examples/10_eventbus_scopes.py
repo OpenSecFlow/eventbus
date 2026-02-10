@@ -12,10 +12,10 @@ Requirements:
 import asyncio
 import logging
 
-from eventbus.memory_broker import AsyncQueueBroker
+from opensecflow.eventbus.memory_broker import AsyncQueueBroker
 from faststream.redis import RedisBroker
-from eventbus.eventbus import EventBus
-from eventbus.event import SkyEvent, EventScope
+from opensecflow.eventbus.eventbus import EventBus
+from opensecflow.eventbus.event import ScopedEvent, EventScope
 
 
 # Configure logging
@@ -39,13 +39,13 @@ async def main():
     bus = EventBus(process_broker, app_broker)
 
     # Process scope event
-    class LocalEvent(SkyEvent):
+    class LocalEvent(ScopedEvent):
         type: str = "local.event"
         message: str
         scope: EventScope = EventScope.PROCESS
 
     # App scope event
-    class DistributedEvent(SkyEvent):
+    class DistributedEvent(ScopedEvent):
         type: str = "distributed.event"
         message: str
         scope: EventScope = EventScope.APP

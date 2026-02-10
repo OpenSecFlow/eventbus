@@ -1,7 +1,7 @@
-"""CloudEvent 规范实现
+"""CloudEvent Specification Implementation
 
-基于 CloudEvents v1.0 规范实现的事件类
-规范文档: https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md
+Event classes based on CloudEvents v1.0 specification
+Specification: https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md
 """
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
@@ -11,102 +11,102 @@ import uuid
 
 
 class EventScope(str, Enum):
-    """事件作用域
+    """Event Scope
 
-    - PROCESS: 进程内事件，只在当前 FastAPI 实例处理
-    - APP: 应用级事件，通过 FastStream 分发到所有实例
+    - PROCESS: Process-level events, handled only within the current instance
+    - APP: Application-level events, distributed to all instances via FastStream
     """
     PROCESS = "process"
     APP = "app"
 
 
 class CloudEvent(BaseModel):
-    """CloudEvent 规范事件类
+    """CloudEvent Specification Event Class
 
-    实现 CloudEvents v1.0 规范的核心属性和扩展属性
+    Implements core and extension attributes of CloudEvents v1.0 specification
 
-    必需属性:
-        id: 事件的唯一标识符
-        source: 事件源的标识符（URI-reference）
-        specversion: CloudEvents 规范版本
-        type: 事件类型标识符
+    Required attributes:
+        id: Unique event identifier
+        source: Event source identifier (URI-reference)
+        specversion: CloudEvents specification version
+        type: Event type identifier
 
-    可选属性:
-        datacontenttype: data 的内容类型（如 application/json）
-        dataschema: data 遵循的 schema 标识符
-        subject: 事件主题，描述事件相关的具体对象
-        time: 事件发生的时间戳
-        data: 事件负载数据
+    Optional attributes:
+        datacontenttype: Content type of data (e.g., application/json)
+        dataschema: Schema identifier that data adheres to
+        subject: Event subject, describes the specific object related to the event
+        time: Timestamp when the event occurred
+        data: Event payload data
     """
 
-    # 必需属性
+    # Required attributes
     id: str = Field(
         default_factory=lambda: str(uuid.uuid4()),
-        description="事件的唯一标识符"
+        description="Unique event identifier"
     )
     source: str = Field(
         ...,
-        description="事件源标识符，使用 URI-reference 格式"
+        description="Event source identifier in URI-reference format"
     )
     specversion: str = Field(
         default="1.0",
-        description="CloudEvents 规范版本"
+        description="CloudEvents specification version"
     )
     type: str = Field(
         ...,
-        description="事件类型标识符，如 com.example.object.action"
+        description="Event type identifier, e.g., com.example.object.action"
     )
 
-    # 可选属性
+    # Optional attributes
     datacontenttype: Optional[str] = Field(
         default="application/json",
-        description="data 的内容类型"
+        description="Content type of data"
     )
     dataschema: Optional[str] = Field(
         default=None,
-        description="data 遵循的 schema URI"
+        description="Schema URI that data adheres to"
     )
     subject: Optional[str] = Field(
         default=None,
-        description="事件主题，描述事件相关的具体对象"
+        description="Event subject, describes the specific object related to the event"
     )
     time: Optional[datetime] = Field(
         default_factory=lambda: datetime.now(timezone.utc),
-        description="事件发生的时间戳（RFC3339 格式）"
+        description="Event timestamp (RFC3339 format)"
     )
     data: Optional[Dict[str, Any]] = Field(
         default=None,
-        description="事件负载数据"
+        description="Event payload data"
     )
 
-    # 扩展属性（可以添加任意自定义属性）
+    # Extension attributes (can add any custom attributes)
     extensions: Dict[str, Any] = Field(
         default_factory=dict,
-        description="CloudEvents 扩展属性"
+        description="CloudEvents extension attributes"
     )
 
     @field_validator('specversion')
     @classmethod
     def validate_specversion(cls, v: str) -> str:
-        """验证 specversion 格式"""
+        """Validate specversion format"""
         if not v:
-            raise ValueError("specversion 不能为空")
+            raise ValueError("specversion cannot be empty")
         return v
 
     @field_validator('type')
     @classmethod
     def validate_type(cls, v: str) -> str:
-        """验证 type 格式"""
+        """Validate type format"""
         if not v:
-            raise ValueError("type 不能为空")
+            raise ValueError("type cannot be empty")
         return v
 
     @field_validator('source')
     @classmethod
     def validate_source(cls, v: str) -> str:
-        """验证 source 格式"""
+        """Validate source format"""
         if not v:
-            raise ValueError("source 不能为空")
+            raise ValueError("source cannot be empty")
         return v
 
     model_config = ConfigDict(
@@ -129,36 +129,36 @@ class CloudEvent(BaseModel):
     )
 
     def to_dict(self) -> Dict[str, Any]:
-        """转换为字典格式
+        """Convert to dictionary format
 
         Returns:
-            包含所有非空字段的字典
+            Dictionary containing all non-null fields
         """
         result = self.model_dump(exclude_none=True, exclude={'extensions'})
-        # 合并扩展属性到顶层
+        # Merge extension attributes to top level
         if self.extensions:
             result.update(self.extensions)
         return result
 
     def to_json(self) -> str:
-        """转换为 JSON 字符串
+        """Convert to JSON string
 
         Returns:
-            JSON 格式的事件数据
+            Event data in JSON format
         """
         return self.model_dump_json(exclude_none=True)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "CloudEvent":
-        """从字典创建 CloudEvent 实例
+        """Create CloudEvent instance from dictionary
 
         Args:
-            data: 包含事件数据的字典
+            data: Dictionary containing event data
 
         Returns:
-            CloudEvent 实例
+            CloudEvent instance
         """
-        # 提取标准属性
+        # Extract standard attributes
         standard_fields = {
             'id', 'source', 'specversion', 'type',
             'datacontenttype', 'dataschema', 'subject', 'time', 'data'
@@ -171,7 +171,7 @@ class CloudEvent(BaseModel):
             if key in standard_fields:
                 event_data[key] = value
             else:
-                # 其他字段作为扩展属性
+                # Other fields as extension attributes
                 extensions[key] = value
 
         if extensions:
@@ -180,56 +180,56 @@ class CloudEvent(BaseModel):
         return cls(**event_data)
 
 
-class SkyEvent(CloudEvent):
-    """Sky 事件类
+class ScopedEvent(CloudEvent):
+    """Scoped Event Class
 
-    基于 CloudEvent 规范实现的 Sky 专用事件，包含事件作用域功能：
-    - id: 唯一事件标识（继承自 CloudEvent）
-    - type: 事件类型（继承自 CloudEvent）
-    - source: 事件源（继承自 CloudEvent）
-    - scope: 事件作用域 (PROCESS/APP)
-    - time: 事件时间戳（继承自 CloudEvent）
-    - data: 事件数据（继承自 CloudEvent）
+    CloudEvent-based event with scope functionality:
+    - id: Unique event identifier (inherited from CloudEvent)
+    - type: Event type (inherited from CloudEvent)
+    - source: Event source (inherited from CloudEvent)
+    - scope: Event scope (PROCESS/APP)
+    - time: Event timestamp (inherited from CloudEvent)
+    - data: Event data (inherited from CloudEvent)
 
-    可以通过 scope 参数控制事件的分发范围：
-    - EventScope.PROCESS: 仅在当前进程内处理
-    - EventScope.APP: 分发到所有应用实例
+    Control event distribution range via scope parameter:
+    - EventScope.PROCESS: Handled only within the current process
+    - EventScope.APP: Distributed to all application instances
 
     Example:
-        # 创建应用级事件（默认）
-        event = SkyEvent(
-            type="sky.data.updated",
-            source="sky-service",
+        # Create application-level event (default)
+        event = ScopedEvent(
+            type="data.updated",
+            source="my-service",
             data={"key": "value"}
         )
 
-        # 创建进程内事件
-        event = SkyEvent(
-            type="sky.cache.cleared",
-            source="sky-service",
+        # Create process-level event
+        event = ScopedEvent(
+            type="cache.cleared",
+            source="my-service",
             data={"cache_key": "user_123"},
             scope=EventScope.PROCESS
         )
     """
     scope: EventScope = Field(
         default=EventScope.APP,
-        description="事件作用域，默认为应用级事件"
+        description="Event scope, defaults to application-level event"
     )
 
-    # 为了向后兼容，添加便捷属性
+    # Backward compatibility convenience properties
     @property
     def event_id(self) -> str:
-        """获取事件 ID（兼容旧接口）"""
+        """Get event ID (backward compatibility)"""
         return self.id
 
     @property
     def event_type(self) -> str:
-        """获取事件类型（兼容旧接口）"""
+        """Get event type (backward compatibility)"""
         return self.type
 
     @property
     def timestamp(self) -> datetime:
-        """获取时间戳（兼容旧接口）"""
+        """Get timestamp (backward compatibility)"""
         return self.time
 
     model_config = ConfigDict(
@@ -237,8 +237,8 @@ class SkyEvent(CloudEvent):
         json_schema_extra={
             "example": {
                 "id": "550e8400-e29b-41d4-a716-446655440000",
-                "type": "sky.data.updated",
-                "source": "sky-service",
+                "type": "data.updated",
+                "source": "my-service",
                 "scope": "app",
                 "time": "2024-02-09T12:00:00Z",
                 "data": {
@@ -248,4 +248,3 @@ class SkyEvent(CloudEvent):
             }
         }
     )
-
