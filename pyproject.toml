@@ -3,7 +3,7 @@ name = "eventbus"
 version = "0.1.0"
 description = "Python event bus library based on CloudEvents specification, supporting in-process and distributed event handling"
 authors = [
-    {name = "EventBus Contributors"}
+    {name = "Alex Yang <ayang@sky-cloud.net>"}
 ]
 readme = "README.md"
 requires-python = ">=3.8"
