@@ -91,21 +91,21 @@ class EventResponse(BaseModel):
 # ============================================================
 
 @event_handler(OrderCreatedEvent)
-async def handle_order_created(event_data: dict):
+async def handle_order_created(event: OrderCreatedEvent):
     """Handle order created event (PROCESS scope)"""
-    logger.info(f"📦 Processing order: {event_data.get('order_id')} for customer {event_data.get('customer_id')}")
+    logger.info(f"📦 Processing order: {event.order_id} for customer {event.customer_id}")
     # Simulate order processing
     await asyncio.sleep(0.1)
-    logger.info(f"✅ Order {event_data.get('order_id')} processed successfully")
+    logger.info(f"✅ Order {event.order_id} processed successfully")
 
 
 @event_handler(NotificationEvent)
-async def handle_notification(event_data: dict):
+async def handle_notification(event: NotificationEvent):
     """Handle notification event (APP scope - distributed)"""
-    logger.info(f"📧 Sending {event_data.get('channel')} notification to user {event_data.get('user_id')}")
+    logger.info(f"📧 Sending {event.channel} notification to user {event.user_id}: {event.message}  ")
     # Simulate notification sending
     await asyncio.sleep(0.1)
-    logger.info(f"✅ Notification sent via {event_data.get('channel')}")
+    logger.info(f"✅ Notification sent via {event.channel}")
 
 
 # ============================================================

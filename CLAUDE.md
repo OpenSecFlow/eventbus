@@ -55,6 +55,9 @@ uv pip install -e ".[examples]"
 
 # Install with Redis support for distributed events
 uv pip install -e ".[redis]"
+
+# Install with development dependencies (pytest, pytest-asyncio)
+uv pip install -e ".[dev]"
 ```
 
 ### Running Examples
@@ -70,15 +73,28 @@ python examples/07_fastapi_integration.py
 # Distributed examples (requires Redis and [redis] extra)
 python examples/10_eventbus_scopes.py
 python examples/15_fastapi_eventbus_integration.py
+
+# Auto-conversion and type safety examples
+python examples/16_event_handler_auto_conversion.py
+python examples/17_event_handler_type_safety.py
 ```
 
 ### Testing
 
-No test suite currently exists. When adding tests, use pytest:
+Test suite uses pytest with async support:
 
 ```bash
-pip install pytest pytest-asyncio
+# Install dev dependencies
+pip install -e ".[dev]"
+
+# Run all tests
 pytest tests/
+
+# Run with verbose output
+pytest tests/ -v
+
+# Run specific test file
+pytest tests/test_event_handler_conversion.py -v
 ```
 
 ## Key Design Patterns
@@ -95,9 +111,13 @@ bus.subscribe("order.created", handler_function)
 2. **Decorator pattern** (requires `init_eventbus()` first):
 ```python
 @event_handler(OrderCreatedEvent)
-async def handle_order(event_data: dict):
-    pass
+async def handle_order(event: OrderCreatedEvent):
+    # event is automatically converted to OrderCreatedEvent instance
+    # Full type safety and IDE autocomplete available
+    print(f"Order {event.order_id} with amount {event.amount}")
 ```
+
+**Note**: The `@event_handler` decorator automatically converts dict payloads to Pydantic event instances, providing full type safety and IDE autocomplete support.
 
 ### Channel Naming Convention
 
@@ -166,7 +186,12 @@ opensecflow/
 
 examples/
 ├── 01-07_*.py          # AsyncQueueBroker standalone examples
-└── 08-15_*.py          # EventBus integration examples
+├── 08-15_*.py          # EventBus integration examples
+└── 16-17_*.py          # Auto-conversion and type safety examples
+
+tests/
+├── test_event_handler_conversion.py  # Tests for dict-to-object conversion
+└── test_event_handler_type_safety.py # Tests for type safety features
 ```
 
 ## Import Usage

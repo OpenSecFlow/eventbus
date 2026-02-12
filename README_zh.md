@@ -26,6 +26,9 @@ uv pip install -e ".[examples]"
 # 安装 Redis 支持（用于分布式事件）
 uv pip install -e ".[redis]"
 
+# 安装开发依赖（pytest、pytest-asyncio）
+uv pip install -e ".[dev]"
+
 # 或仅安装核心依赖
 pip install pydantic faststream
 ```
@@ -36,9 +39,9 @@ pip install pydantic faststream
 
 ```python
 import asyncio
-from eventbus.memory_broker import AsyncQueueBroker
-from eventbus.eventbus import EventBus
-from eventbus.event import SkyEvent, EventScope
+from opensecflow.eventbus.memory_broker import AsyncQueueBroker
+from opensecflow.eventbus.eventbus import EventBus
+from opensecflow.eventbus.event import ScopedEvent, EventScope
 
 # 创建 brokers（为简单起见，两个都使用 AsyncQueueBroker）
 process_broker = AsyncQueueBroker()
@@ -48,7 +51,7 @@ app_broker = AsyncQueueBroker()
 bus = EventBus(process_broker, app_broker)
 
 # 定义事件类
-class OrderCreatedEvent(SkyEvent):
+class OrderCreatedEvent(ScopedEvent):
     type: str = "order.created"
     order_id: str
     amount: float
@@ -81,20 +84,22 @@ await bus.stop()
 ```python
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from eventbus.memory_broker import AsyncQueueBroker
-from eventbus.eventbus import init_eventbus, event_handler
-from eventbus.event import SkyEvent, EventScope
+from opensecflow.eventbus.memory_broker import AsyncQueueBroker
+from opensecflow.eventbus.eventbus import init_eventbus, event_handler
+from opensecflow.eventbus.event import ScopedEvent, EventScope
 
 # 定义事件
-class OrderCreatedEvent(SkyEvent):
+class OrderCreatedEvent(ScopedEvent):
     type: str = "order.created"
     order_id: str
     scope: EventScope = EventScope.PROCESS
 
-# 使用装饰器注册处理器
+# 使用装饰器注册处理器，自动类型转换
 @event_handler(OrderCreatedEvent)
-async def handle_order(event_data: dict):
-    print(f"处理订单: {event_data['order_id']}")
+async def handle_order(event: OrderCreatedEvent):
+    # event 自动转换为 OrderCreatedEvent 实例
+    # 完整的类型安全和 IDE 自动补全支持
+    print(f"处理订单: {event.order_id}")
 
 # FastAPI 生命周期管理
 @asynccontextmanager
@@ -125,9 +130,9 @@ async def create_order(order_id: str, amount: float):
 如需跨多个实例的分布式事件处理，可使用 FastStream brokers：
 
 ```python
-from eventbus.memory_broker import AsyncQueueBroker
+from opensecflow.eventbus.memory_broker import AsyncQueueBroker
 from faststream.redis import RedisBroker
-from eventbus.eventbus import EventBus
+from opensecflow.eventbus.eventbus import EventBus
 
 # Process broker: 内存队列，用于快速的本地事件
 process_broker = AsyncQueueBroker()
@@ -160,7 +165,7 @@ bus = EventBus(process_broker, app_broker)
 - `data`: 事件负载数据
 - `extensions`: 扩展属性字典
 
-### SkyEvent
+### ScopedEvent
 
 继承自 CloudEvent，添加了事件作用域功能。
 
@@ -280,7 +285,7 @@ async with AsyncQueueBroker() as broker:
 
 ```python
 # 进程内事件（快速）
-process_event = SkyEvent(
+process_event = ScopedEvent(
     type="cache.cleared",
     source="cache-service",
     scope=EventScope.PROCESS,
@@ -289,7 +294,7 @@ process_event = SkyEvent(
 await bus.publish(process_event)
 
 # 应用级事件（分布式）
-app_event = SkyEvent(
+app_event = ScopedEvent(
     type="user.registered",
     source="auth-service",
     scope=EventScope.APP,
@@ -342,6 +347,10 @@ for event_type, handler_list in handlers.items():
 - [14_eventbus_custom_logger.py](examples/14_eventbus_custom_logger.py) - 自定义日志
 - [15_fastapi_eventbus_integration.py](examples/15_fastapi_eventbus_integration.py) - FastAPI 完整集成
 
+### 类型安全示例
+- [16_event_handler_auto_conversion.py](examples/16_event_handler_auto_conversion.py) - 自动字典到对象转换
+- [17_event_handler_type_safety.py](examples/17_event_handler_type_safety.py) - 类型安全演示
+
 运行示例：
 
 ```bash
@@ -378,10 +387,10 @@ class CloudEvent(BaseModel):
     def from_dict(cls, data: Dict[str, Any]) -> "CloudEvent"
 ```
 
-### SkyEvent
+### ScopedEvent
 
 ```python
-class SkyEvent(CloudEvent):
+class ScopedEvent(CloudEvent):
     scope: EventScope = EventScope.APP   # 事件作用域
 
     @property
@@ -445,12 +454,12 @@ class EventBus:
     async def stop() -> None
 
     def subscribe(self, event_type: str, handler: Callable) -> None
-    async def publish(self, event: SkyEvent) -> None
+    async def publish(self, event: ScopedEvent) -> None
 
     def get_handlers() -> Dict[str, List[Dict[str, str]]]
 
-# 装饰器
-def event_handler(event_class: Type[SkyEvent]) -> Callable
+# 装饰器（自动将字典转换为类型化的事件对象）
+def event_handler(event_class: Type[ScopedEvent]) -> Callable
 
 # 初始化函数
 def init_eventbus(
@@ -497,7 +506,7 @@ def init_eventbus(
 
 ```python
 # 好的实践
-class UserCreatedEvent(SkyEvent):
+class UserCreatedEvent(ScopedEvent):
     type: str = "user.created"
     user_id: str
     email: str
@@ -524,11 +533,27 @@ async def handle_order(event_data: dict):
 
 ### 5. 测试
 
-使用 AsyncQueueBroker 进行单元测试：
+项目包含了完整的测试套件，使用 pytest 和异步支持：
+
+```bash
+# 安装开发依赖
+pip install -e ".[dev]"
+
+# 运行所有测试
+pytest tests/
+
+# 详细输出模式
+pytest tests/ -v
+
+# 运行特定测试文件
+pytest tests/test_event_handler_conversion.py -v
+```
+
+使用 AsyncQueueBroker 进行单元测试的示例：
 
 ```python
 import pytest
-from eventbus.memory_broker import AsyncQueueBroker
+from opensecflow.eventbus.memory_broker import AsyncQueueBroker
 
 @pytest.mark.asyncio
 async def test_event_handling():
@@ -556,6 +581,8 @@ EventBus 可以与 FastStream 的各种 broker 集成：
 
 ```python
 from faststream.redis import RedisBroker
+from opensecflow.eventbus.memory_broker import AsyncQueueBroker
+from opensecflow.eventbus.eventbus import EventBus
 
 process_broker = AsyncQueueBroker()
 app_broker = RedisBroker("redis://localhost:6379")
@@ -566,6 +593,8 @@ event_bus = EventBus(process_broker, app_broker)
 
 ```python
 from faststream.kafka import KafkaBroker
+from opensecflow.eventbus.memory_broker import AsyncQueueBroker
+from opensecflow.eventbus.eventbus import EventBus
 
 process_broker = AsyncQueueBroker()
 app_broker = KafkaBroker("localhost:9092")
@@ -576,6 +605,8 @@ event_bus = EventBus(process_broker, app_broker)
 
 ```python
 from faststream.rabbit import RabbitBroker
+from opensecflow.eventbus.memory_broker import AsyncQueueBroker
+from opensecflow.eventbus.eventbus import EventBus
 
 process_broker = AsyncQueueBroker()
 app_broker = RabbitBroker("amqp://guest:guest@localhost:5672/")

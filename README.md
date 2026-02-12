@@ -26,6 +26,9 @@ uv pip install -e ".[examples]"
 # Install with Redis support for distributed events
 uv pip install -e ".[redis]"
 
+# Install with development dependencies (pytest, pytest-asyncio)
+uv pip install -e ".[dev]"
+
 # Or install core dependencies only
 pip install pydantic faststream
 ```
@@ -36,9 +39,9 @@ pip install pydantic faststream
 
 ```python
 import asyncio
-from eventbus.memory_broker import AsyncQueueBroker
-from eventbus.eventbus import EventBus
-from eventbus.event import SkyEvent, EventScope
+from opensecflow.eventbus.memory_broker import AsyncQueueBroker
+from opensecflow.eventbus.eventbus import EventBus
+from opensecflow.eventbus.event import ScopedEvent, EventScope
 
 # Create brokers (both using AsyncQueueBroker for simplicity)
 process_broker = AsyncQueueBroker()
@@ -48,7 +51,7 @@ app_broker = AsyncQueueBroker()
 bus = EventBus(process_broker, app_broker)
 
 # Define event class
-class OrderCreatedEvent(SkyEvent):
+class OrderCreatedEvent(ScopedEvent):
     type: str = "order.created"
     order_id: str
     amount: float
@@ -81,20 +84,22 @@ await bus.stop()
 ```python
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from eventbus.memory_broker import AsyncQueueBroker
-from eventbus.eventbus import init_eventbus, event_handler
-from eventbus.event import SkyEvent, EventScope
+from opensecflow.eventbus.memory_broker import AsyncQueueBroker
+from opensecflow.eventbus.eventbus import init_eventbus, event_handler
+from opensecflow.eventbus.event import ScopedEvent, EventScope
 
 # Define event
-class OrderCreatedEvent(SkyEvent):
+class OrderCreatedEvent(ScopedEvent):
     type: str = "order.created"
     order_id: str
     scope: EventScope = EventScope.PROCESS
 
-# Register handler using decorator
+# Register handler using decorator with automatic type conversion
 @event_handler(OrderCreatedEvent)
-async def handle_order(event_data: dict):
-    print(f"Processing order: {event_data['order_id']}")
+async def handle_order(event: OrderCreatedEvent):
+    # event is automatically converted to OrderCreatedEvent instance
+    # Full type safety and IDE autocomplete available
+    print(f"Processing order: {event.order_id}")
 
 # FastAPI lifecycle management
 @asynccontextmanager
@@ -125,9 +130,9 @@ async def create_order(order_id: str, amount: float):
 For distributed event handling across multiple instances, use FastStream brokers:
 
 ```python
-from eventbus.memory_broker import AsyncQueueBroker
+from opensecflow.eventbus.memory_broker import AsyncQueueBroker
 from faststream.redis import RedisBroker
-from eventbus.eventbus import EventBus
+from opensecflow.eventbus.eventbus import EventBus
 
 # Process broker: in-memory for fast local events
 process_broker = AsyncQueueBroker()
@@ -160,7 +165,7 @@ Event class based on [CloudEvents v1.0 specification](https://github.com/cloudev
 - `data`: Event payload data
 - `extensions`: Extension attributes dictionary
 
-### SkyEvent
+### ScopedEvent
 
 Extends CloudEvent with event scope functionality.
 
@@ -280,7 +285,7 @@ async with AsyncQueueBroker() as broker:
 
 ```python
 # In-process event (fast)
-process_event = SkyEvent(
+process_event = ScopedEvent(
     type="cache.cleared",
     source="cache-service",
     scope=EventScope.PROCESS,
@@ -289,7 +294,7 @@ process_event = SkyEvent(
 await bus.publish(process_event)
 
 # Application-level event (distributed)
-app_event = SkyEvent(
+app_event = ScopedEvent(
     type="user.registered",
     source="auth-service",
     scope=EventScope.APP,
@@ -342,6 +347,10 @@ The [examples](examples/) directory contains complete example code:
 - [14_eventbus_custom_logger.py](examples/14_eventbus_custom_logger.py) - Custom logger
 - [15_fastapi_eventbus_integration.py](examples/15_fastapi_eventbus_integration.py) - FastAPI complete integration
 
+### Type Safety Examples
+- [16_event_handler_auto_conversion.py](examples/16_event_handler_auto_conversion.py) - Automatic dict-to-object conversion
+- [17_event_handler_type_safety.py](examples/17_event_handler_type_safety.py) - Type safety demonstration
+
 Running examples:
 
 ```bash
@@ -378,10 +387,10 @@ class CloudEvent(BaseModel):
     def from_dict(cls, data: Dict[str, Any]) -> "CloudEvent"
 ```
 
-### SkyEvent
+### ScopedEvent
 
 ```python
-class SkyEvent(CloudEvent):
+class ScopedEvent(CloudEvent):
     scope: EventScope = EventScope.APP   # Event scope
 
     @property
@@ -445,12 +454,12 @@ class EventBus:
     async def stop() -> None
 
     def subscribe(self, event_type: str, handler: Callable) -> None
-    async def publish(self, event: SkyEvent) -> None
+    async def publish(self, event: ScopedEvent) -> None
 
     def get_handlers() -> Dict[str, List[Dict[str, str]]]
 
-# Decorator
-def event_handler(event_class: Type[SkyEvent]) -> Callable
+# Decorator (automatically converts dict to typed event objects)
+def event_handler(event_class: Type[ScopedEvent]) -> Callable
 
 # Initialization function
 def init_eventbus(
@@ -497,7 +506,7 @@ Keep event data concise, include only necessary information:
 
 ```python
 # Good practice
-class UserCreatedEvent(SkyEvent):
+class UserCreatedEvent(ScopedEvent):
     type: str = "user.created"
     user_id: str
     email: str
@@ -524,11 +533,27 @@ async def handle_order(event_data: dict):
 
 ### 5. Testing
 
-Use AsyncQueueBroker for unit testing:
+The project includes a comprehensive test suite using pytest with async support:
+
+```bash
+# Install dev dependencies
+pip install -e ".[dev]"
+
+# Run all tests
+pytest tests/
+
+# Run with verbose output
+pytest tests/ -v
+
+# Run specific test file
+pytest tests/test_event_handler_conversion.py -v
+```
+
+Example unit test using AsyncQueueBroker:
 
 ```python
 import pytest
-from eventbus.memory_broker import AsyncQueueBroker
+from opensecflow.eventbus.memory_broker import AsyncQueueBroker
 
 @pytest.mark.asyncio
 async def test_event_handling():
@@ -556,6 +581,8 @@ EventBus can integrate with various FastStream brokers:
 
 ```python
 from faststream.redis import RedisBroker
+from opensecflow.eventbus.memory_broker import AsyncQueueBroker
+from opensecflow.eventbus.eventbus import EventBus
 
 process_broker = AsyncQueueBroker()
 app_broker = RedisBroker("redis://localhost:6379")
@@ -566,6 +593,8 @@ event_bus = EventBus(process_broker, app_broker)
 
 ```python
 from faststream.kafka import KafkaBroker
+from opensecflow.eventbus.memory_broker import AsyncQueueBroker
+from opensecflow.eventbus.eventbus import EventBus
 
 process_broker = AsyncQueueBroker()
 app_broker = KafkaBroker("localhost:9092")
@@ -576,6 +605,8 @@ event_bus = EventBus(process_broker, app_broker)
 
 ```python
 from faststream.rabbit import RabbitBroker
+from opensecflow.eventbus.memory_broker import AsyncQueueBroker
+from opensecflow.eventbus.eventbus import EventBus
 
 process_broker = AsyncQueueBroker()
 app_broker = RabbitBroker("amqp://guest:guest@localhost:5672/")

@@ -1,4 +1,6 @@
 import logging
+import asyncio
+from functools import wraps
 from typing import Any, Dict, List, Callable, Type, Union, Optional
 from opensecflow.eventbus.event import EventScope, ScopedEvent
 from opensecflow.eventbus.memory_broker import AsyncQueueBroker
@@ -216,6 +218,7 @@ def event_handler(event_class: Type[ScopedEvent]):
     """Event handler function decorator
 
     Used to register event handlers to EventBus.
+    Automatically converts dict payloads to Pydantic event instances.
 
     Args:
         event_class: ScopedEvent class
@@ -223,6 +226,7 @@ def event_handler(event_class: Type[ScopedEvent]):
     Example:
         @event_handler(OrderCreatedEvent)
         async def handle_order(event: OrderCreatedEvent):
+            # event is guaranteed to be OrderCreatedEvent instance, not dict
             pass
     """
     def decorator(func: Callable):
@@ -243,17 +247,53 @@ def event_handler(event_class: Type[ScopedEvent]):
         except Exception as e:
             raise ValueError(f"Cannot extract event type from {event_class}: {e}")
 
+        # Create a wrapper that automatically converts dict to Pydantic object
+        @wraps(func)
+        async def async_wrapper(*args, **kwargs):
+            # Handle both positional and keyword arguments
+            # FastStream may pass data as first positional arg or as keyword arg
+            if args:
+                data = args[0]
+            elif kwargs:
+                # Get the first keyword argument value (usually 'event', 'message', or 'data')
+                data = next(iter(kwargs.values()))
+            else:
+                raise ValueError("No data provided to event handler")
+
+            # Convert dict to Pydantic object if needed
+            if isinstance(data, dict):
+                data = event_class(**data)
+            # Call the original handler
+            return await func(data)
+
+        @wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            # Handle both positional and keyword arguments
+            if args:
+                data = args[0]
+            elif kwargs:
+                # Get the first keyword argument value
+                data = next(iter(kwargs.values()))
+            else:
+                raise ValueError("No data provided to event handler")
+
+            # Convert dict to Pydantic object if needed
+            if isinstance(data, dict):
+                data = event_class(**data)
+            # Call the original handler
+            return func(data)
+
+        # Choose appropriate wrapper based on whether func is async
+        wrapper = async_wrapper if asyncio.iscoroutinefunction(func) else sync_wrapper
+
         # If EventBus is already initialized, register directly
         if event_bus is not None:
-            if event_type not in event_bus._handlers:
-                event_bus._handlers[event_type] = []
-            event_bus._handlers[event_type].append(func)
-            event_bus._logger.info(f"Registered handler '{func.__name__}' for event '{event_type}'")
+            event_bus.subscribe(event_type, wrapper)
         else:
             # Otherwise add to pending list
-            _pending_handlers.append((event_type, func))
+            _pending_handlers.append((event_type, wrapper))
 
-        return func
+        return wrapper
     return decorator
 
 

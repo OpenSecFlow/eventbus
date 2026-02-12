@@ -34,12 +34,12 @@ async def main():
 
     # Use decorator to register handlers
     @event_handler(UserRegisteredEvent)
-    async def send_welcome_email(event_data: dict):
-        print(f"  📧 Sending welcome email to: {event_data.get('email')}")
+    async def send_welcome_email(event_data: UserRegisteredEvent):
+        print(f"  📧 Sending welcome email to: {event_data.email}")
 
     @event_handler(UserRegisteredEvent)
-    async def create_user_profile(event_data: dict):
-        print(f"  👤 Creating profile for user: {event_data.get('user_id')}")
+    async def create_user_profile(event_data: UserRegisteredEvent):
+        print(f"  👤 Creating profile for user: {event_data.user_id}")
 
     # Initialize global EventBus
     process_broker = AsyncQueueBroker()
