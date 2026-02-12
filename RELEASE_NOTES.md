@@ -1,5 +1,48 @@
 # Release Notes
 
+## Version 0.2.0 (2026-02-12)
+
+### 🚀 Type Safety Enhancement
+
+Automatic dict-to-object conversion in event handlers for improved developer experience and type safety.
+
+### ✨ Features
+
+- **Automatic Type Conversion**: `@event_handler` decorator now automatically converts dict payloads to Pydantic event instances
+- **Full Type Safety**: Handlers receive typed event objects with IDE autocomplete and validation
+- **FastStream Compatibility**: Support for both positional and keyword arguments from different broker implementations
+- **Backward Compatible**: Existing code works without changes
+
+### 🧪 Testing
+
+- Added comprehensive pytest test suite with 11 tests
+- Test coverage: dict-to-object conversion, type safety, keyword argument handling
+- Dev dependencies: `pytest>=7.0.0`, `pytest-asyncio>=0.21.0`
+
+### 📚 Documentation
+
+- Updated README.md and README_zh.md with type safety examples
+- Enhanced CLAUDE.md with testing and handler registration guidance
+- Added examples: `16_event_handler_auto_conversion.py`, `17_event_handler_type_safety.py`
+
+### 🐛 Bug Fixes
+
+- Fixed handler registration to properly register with brokers
+- Fixed TypeError with FastStream brokers passing keyword arguments
+
+### 🔄 Migration
+
+No breaking changes. Optionally update handler type annotations for better type safety:
+
+```python
+# Recommended: Full type safety
+@event_handler(OrderCreatedEvent)
+async def handle_order(event: OrderCreatedEvent):
+    print(f"Order {event.order_id}")
+```
+
+---
+
 ## Version 0.1.0 (2026-02-10)
 
 ### 🎉 Initial Release

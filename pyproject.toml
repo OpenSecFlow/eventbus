@@ -1,6 +1,6 @@
 [project]
 name = "opensecflow.eventbus"
-version = "0.1.0"
+version = "0.2.0"
 description = "Python event bus library based on CloudEvents specification, supporting in-process and distributed event handling"
 authors = [
     {name = "Alex Yang <ayang@sky-cloud.net>"}
